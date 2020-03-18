@@ -1,0 +1,14 @@
+*.idea/*
+*.pyc
+.env/*
+*.DS_Store
+*/data/submission.csv
+*/submission/*
+*.ipynb_checkpoints/*
+*.ipynb
+*/data/evaluation_df.csv
+*/models/finalized_*
+*/models/performances/
+*/models/performances/*
+*/models/performances
+kaggle_blueprint/models/performances
