@@ -1,4 +1,4 @@
-MODULE := kaggle_blueprint
+MODULE := gym_blueprint
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 MESSAGE="Message"
@@ -16,9 +16,6 @@ TAG := $(shell git describe --tags --always --dirty)
 run:
 	@python -m $(MODULE)
 
-submit:
-	@kaggle competitions submit -c house-prices-advanced-regression-techniques -f $(MODULE)/data/submission.csv -m $(MESSAGE)
-	@echo "\n"
 test:
 	@pytest
 
