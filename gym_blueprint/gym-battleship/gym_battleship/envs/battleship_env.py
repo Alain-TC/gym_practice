@@ -1,97 +1,77 @@
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
+from gym.envs.toy_text import discrete
+import numpy as np
+
 
 class BattleshipEnv(gym.Env):
-	metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human']}
 
+    def __init__(self):
+        self.shape = (6, 6)
+        self.cases = 3
+        self.hit = 0
 
-	def __init__(self):
-		super(BattleshipEnv, self).__init__()
+        # state
+        self._board = np.zeros(self.shape, dtype=np.bool)
+        for i in range(3):
+            self._board[2,1+i] = True
 
-		# Example when using discrete actions:
-		self.action_space = spaces.Tuple((spaces.Discrete(3), spaces.Discrete(3)))
+        self.observed_board = np.zeros(self.shape)
 
-		# Example for using image as input:
-		self.observation_space = spaces.Tuple((spaces.Discrete(3), spaces.Discrete(3)))
+        # Example when using discrete actions:
+        self.action_space = spaces.Tuple((spaces.Discrete(self.shape[0]), spaces.Discrete(self.shape[0])))
 
-		self.state = []
-		for i in range(3):
-			self.state += [[]]
-			for j in range(3):
-				self.state[i] += ["-"]
-		self.counter = 0
-		self.done = 0
-		self.add = [0, 0]
-		self.reward = 0
+        self.state = (self.observed_board, self._board)
 
-	def check(self):
+        #super(BattleshipEnv, self).__init__()
 
-		if(self.counter<5):
-			return 0
-		for i in range(3):
-			if(self.state[i][0] != "-" and self.state[i][1] == self.state[i][0] and self.state[i][1] == self.state[i][2]):
-				if(self.state[i][0] == "o"):
-					return 1
-				else:
-					return 2
-			if(self.state[0][i] != "-" and self.state[1][i] == self.state[0][i] and self.state[1][i] == self.state[2][i]):
-				if(self.state[0][i] == "o"):
-					return 1
-				else:
-					return 2
-		if(self.state[0][0] != "-" and self.state[1][1] == self.state[0][0] and self.state[1][1] == self.state[2][2]):
-			if(self.state[0][0] == "o"):
-				return 1
-			else:
-				return 2
-		if(self.state[0][2] != "-" and self.state[0][2] == self.state[1][1] and self.state[1][1] == self.state[2][0]):
-			if(self.state[1][1] == "o"):
-				return 1
-			else:
-				return 2
+    def step(self, action):
+        action_x = action//6
+        action_y = action - 6 * (action//6)
+        action = (action_x, action_y)
 
-	def step(self, target):
-		if self.done == 1:
-			print("Game Over")
-			return [self.state, self.reward, self.done, self.add]
-		elif self.state[int(target/3)][target%3] != "-":
-			print("Invalid Step")
-			return [self.state, self.reward, self.done, self.add]
-		else:
-			if(self.counter%2 == 0):
-				self.state[int(target/3)][target%3] = "o"
-			else:
-				self.state[int(target/3)][target%3] = "x"
-			self.counter += 1
-			if(self.counter == 9):
-				self.done = 1;
-			self.render()
+        state = self.state
+        if self.observed_board[action]!=0:
+            print("Nimp")
+            return np.array(self.state), -1000, True, {}
 
-		win = self.check()
-		if(win):
-			self.done = 1;
-			print("Player ", win, " wins.", sep = "", end = "\n")
-			self.add[win-1] = 1;
-			if win == 1:
-				self.reward = 100
-			else:
-				self.reward = -100
+        else:
+            if self._board[action] == True:
+                self.observed_board[action] = 2
+                #self.state = (self.observed_board, self._board)
+                self.hit += 1
+                if self.hit == self.cases:
+                    print("Victory")
+                    return np.array(self.state), 10, True, {}
+                else:
+                    return np.array(self.state), 1, False, {}
+            else:
+                self.observed_board[action] = -1
+                return np.array(self.state), -1, False, {}
 
-		return [self.state, self.reward, self.done, self.add]
+    def render(self):
+        for i in range(3):
+            for j in range(3):
+                self.state[i][j] = "-"
+        self.counter = 0
+        self.done = 0
+        self.add = [0, 0]
+        self.reward = 0
+        return self.state
 
-	def reset(self):
-		for i in range(3):
-			for j in range(3):
-				self.state[i][j] = "-"
-		self.counter = 0
-		self.done = 0
-		self.add = [0, 0]
-		self.reward = 0
-		return self.state
+    def reset(self):
+        self.shape = (6, 6)
+        self.cases = 3
+        self.hit = 0
 
-	def render(self):
-		for i in range(3):
-			for j in range(3):
-				print(self.state[i][j], end = " ")
-			print("")
+        # state
+        self._board = np.zeros(self.shape, dtype=np.bool)
+        for i in range(3):
+            self._board[2,1+i] = True
+
+        self.observed_board = np.zeros(self.shape)
+        self.state = (self.observed_board, self._board)
+
+        return np.array(self.observed_board)
