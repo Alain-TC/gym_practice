@@ -12,8 +12,18 @@ import tensorflow as tf
 
 EPISODES = 5000
 
-class DDQNAgent:
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=100000, gamma=0.99):
+class Agent:
+    def __init__(self):
+        self.target_model = None
+
+    def to_json(self):
+        return self.target_model.to_json()
+
+    def save_weights(self, path):
+        return self.target_model.save_weights(path)
+
+class DDQNAgent(Agent):
+    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=memory_size)
@@ -22,20 +32,21 @@ class DDQNAgent:
         self.epsilon_min = 0.001
         self.epsilon_decay = epsilon_decay
         self.learning_rate = 0.001
+        self.tau = .001
         self.model = self._build_model()
         self.target_model = self._build_model()
-        self.update_target_model()
+        self.update_target_model(1)
+        self.target_counter = 0
 
-    def update_epsilon(self, epsilon=1.0, epsilon_decay=0.99, epsilon_min=0.001):
-        self.epsilon = epsilon  # exploration rate
-        self.epsilon_min = epsilon_min
-        self.epsilon_decay = epsilon_decay
+    def update_epsilon(self):
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
 
     """Huber loss for Q Learning
     References: https://en.wikipedia.org/wiki/Huber_loss
                 https://www.tensorflow.org/api_docs/python/tf/losses/huber_loss
     """
-
     def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
         error = y_true - y_pred
         cond  = K.abs(error) <= clip_delta
@@ -50,15 +61,18 @@ class DDQNAgent:
         model = Sequential()
         model.add(Dense(64, input_dim=self.state_size, activation='relu'))
         model.add(Dense(64, input_dim=64, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        model.add(Dense(32, input_dim=64, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss=self._huber_loss,
                       optimizer=Adam(lr=self.learning_rate))
         return model
 
-    def update_target_model(self):
-        # copy weights from model to target_model
-        self.target_model.set_weights(self.model.get_weights())
+    def update_target_model(self, tau):
+        # copy weights from model to target_model        #print(self.model.get_weights()[0])
+        new_weights = []
+        for i in range(len(self.model.get_weights())):
+            new_weights.append(tau * self.model.get_weights()[i] + (1 - tau) * self.target_model.get_weights()[i])
+        self.target_model.set_weights(new_weights)
 
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -81,8 +95,9 @@ class DDQNAgent:
                 target[0][action] = reward + self.gamma * np.amax(t)
                 # target[0][action] = reward + self.gamma * t[np.argmax(a)]
             self.model.fit(state, target, epochs=1, verbose=0)
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+        self.update_target_model(self.tau)
+
+        
 
     def load(self, name):
         self.model.load_weights(name)
