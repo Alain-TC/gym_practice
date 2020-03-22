@@ -7,56 +7,29 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
 from keras import backend as K
-from keras.models import model_from_json
 import tensorflow as tf
 from .replay_memory.memory import Memory
+from .basic_agent import Agent
 
-
-EPISODES = 5000
-
-class Agent:
-    def __init__(self):
-        self.target_model = None
-
-    def to_json(self):
-        return self.target_model.to_json()
-
-    def save_weights(self, path):
-        return self.target_model.save_weights(path)
 
 class DDQNAgent(Agent):
     def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99):
-        self.state_size = state_size
-        self.action_size = action_size
+        super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma)
         self.USE_PER = True
         self.ddqn = True
         self.MEMORY = Memory(memory_size)
 
-        self.memory = deque(maxlen=memory_size)
-
-        self.gamma = gamma    # discount rate
-        self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.001
-        self.epsilon_decay = epsilon_decay
-        self.learning_rate = 0.001
-        self.tau = .001
-        self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_target_model(1)
-        self.target_counter = 0
-
-    def update_epsilon(self):
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
 
     """Huber loss for Q Learning
     References: https://en.wikipedia.org/wiki/Huber_loss
                 https://www.tensorflow.org/api_docs/python/tf/losses/huber_loss
     """
+
     def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
         error = y_true - y_pred
-        cond  = K.abs(error) <= clip_delta
+        cond = K.abs(error) <= clip_delta
 
         squared_loss = 0.5 * K.square(error)
         quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
@@ -94,17 +67,9 @@ class DDQNAgent(Agent):
         act_values = self.model.predict(state)
         return np.argmax(act_values[0])  # returns action
 
-    # def replay(self, batch_size):
-    #     minibatch = random.sample(self.memory, batch_size)
-    #     for state, action, reward, next_state, done in minibatch:
-    #         target = self.model.predict(state)
-    #         target[0][action] = reward + [self.gamma * np.amax(self.target_model.predict(next_state)[0]), 0][done]
-    #         self.model.fit(state, target, epochs=1, verbose=0)
-    #     self.update_target_model(self.tau)
-
     def replay(self, batch_size):
         self.batch_size = batch_size
-        #if len(self.memory) < self.train_start:
+        # if len(self.memory) < self.train_start:
         #    return
         # Randomly sample minibatch from the memory
         if self.USE_PER:
@@ -151,7 +116,7 @@ class DDQNAgent(Agent):
                     # Q_max = max_a' Q_target(s', a')
                     target[i][action[i]] = reward[i] + self.gamma * (np.amax(target_next[i]))
 
-        # Train the Neural Network with batches
+                    # Train the Neural Network with batches
             target_old = np.array(target)
 
             if self.USE_PER:
@@ -162,24 +127,3 @@ class DDQNAgent(Agent):
         # Train the Neural Network with batches
         self.model.fit(state, target, batch_size=self.batch_size, verbose=0)
         self.update_target_model(self.tau)
-
-
-    def load(self, name):
-        self.model.load_weights(name)
-        print("Loaded model weights")
-
-    def save(self, name):
-        self.model.save_weights(name)
-
-    def save_json(self, json_path):
-        model_json = self.model.to_json()
-        with open(json_path, "w") as json_file:
-            json_file.write(model_json)
-
-# load json and create model
-    def load_model(self, json_path):
-        json_file = open(json_path, 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
-        self.model = model_from_json(loaded_model_json)
-        print("Loaded model architecture")
