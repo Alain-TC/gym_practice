@@ -10,42 +10,20 @@ from keras import backend as K
 import tensorflow as tf
 from .replay_memory.memory import Memory
 from .basic_agent import Agent
+from .basic_model import SmallModel
 
 
 class DDQNAgent(Agent):
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99):
+    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001):
         super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma)
         self.USE_PER = True
         self.ddqn = True
         self.MEMORY = Memory(memory_size)
+        self.tau = tau
 
-        self.target_model = self._build_model()
+        self.model = SmallModel(self.state_size, self.action_size, self.learning_rate, False)
+        self.target_model = SmallModel(self.state_size, self.action_size, self.learning_rate, False)
         self.update_target_model(1)
-
-    """Huber loss for Q Learning
-    References: https://en.wikipedia.org/wiki/Huber_loss
-                https://www.tensorflow.org/api_docs/python/tf/losses/huber_loss
-    """
-
-    def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
-        error = y_true - y_pred
-        cond = K.abs(error) <= clip_delta
-
-        squared_loss = 0.5 * K.square(error)
-        quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
-
-        return K.mean(tf.where(cond, squared_loss, quadratic_loss))
-
-    def _build_model(self):
-        # Neural Net for Deep-Q learning Model
-        model = Sequential()
-        model.add(Dense(64, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(64, input_dim=64, activation='relu'))
-        model.add(Dense(32, input_dim=64, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
-        model.compile(loss=self._huber_loss,
-                      optimizer=Adam(lr=self.learning_rate))
-        return model
 
     def update_target_model(self, tau):
         # copy weights from model to target_model        #print(self.model.get_weights()[0])

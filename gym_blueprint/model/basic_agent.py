@@ -9,6 +9,8 @@ from keras.models import Model, load_model
 from keras.layers import Input, Dense
 from keras.optimizers import Adam, RMSprop
 from keras.models import model_from_json
+from .basic_model import SmallModel
+from .basic_model import SmallModel
 
 
 def OurModel(input_shape, action_space):
@@ -47,15 +49,13 @@ class Agent:
         self.epsilon_min = 0.001
         self.epsilon_decay = epsilon_decay
         self.learning_rate = 0.001
-        self.tau = .001
-        self.model = self._build_model()
-
-    def _build_model(self):
-        pass
+        self.model = SmallModel(self.state_size, self.action_size, self.learning_rate)
 
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+            #         explore_probability = self.epsilon_min + (self.epsilon - self.epsilon_min) * np.exp(-self.epsilon_decay * decay_step)
+
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
