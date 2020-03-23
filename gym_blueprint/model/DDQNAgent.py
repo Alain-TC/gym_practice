@@ -17,13 +17,18 @@ class DDQNAgent(Agent):
     def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001):
         super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma)
         self.USE_PER = True
+        self.dueling = False
         self.ddqn = True
         self.MEMORY = Memory(memory_size)
         self.tau = tau
 
-        self.model = SmallModel(self.state_size, self.action_size, self.learning_rate, False)
-        self.target_model = SmallModel(self.state_size, self.action_size, self.learning_rate, False)
+        self.model = SmallModel(self.state_size, self.action_size, self.learning_rate, self.dueling)
+        self.target_model = SmallModel(self.state_size, self.action_size, self.learning_rate, self.dueling)
         self.update_target_model(1)
+
+    def init_models(self, model):
+        self.model = model.co
+        self.target_model = SmallModel(self.state_size, self.action_size, self.learning_rate, self.dueling)
 
     def update_target_model(self, tau):
         # copy weights from model to target_model        #print(self.model.get_weights()[0])
@@ -73,6 +78,7 @@ class DDQNAgent(Agent):
 
         # do batch prediction to save speed
         target = self.model.predict(state)
+        target_old = np.array(target)
         target_next = self.model.predict(next_state)
         target_val = self.target_model.predict(next_state)
 
@@ -95,7 +101,7 @@ class DDQNAgent(Agent):
                     target[i][action[i]] = reward[i] + self.gamma * (np.amax(target_next[i]))
 
                     # Train the Neural Network with batches
-            target_old = np.array(target)
+
 
             if self.USE_PER:
                 absolute_errors = np.abs(target_old[i] - target[i])

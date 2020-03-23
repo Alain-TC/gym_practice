@@ -49,7 +49,10 @@ class Agent:
         self.epsilon_min = 0.001
         self.epsilon_decay = epsilon_decay
         self.learning_rate = 0.001
-        self.model = SmallModel(self.state_size, self.action_size, self.learning_rate)
+        self.model = None
+
+    def init_models(self, model):
+        self.model = model
 
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
