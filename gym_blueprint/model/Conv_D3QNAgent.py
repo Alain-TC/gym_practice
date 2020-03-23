@@ -9,13 +9,7 @@ from .basic_model import CNNModel
 
 class Conv_D3QNAgent(D3QNAgent):
     def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
-                 dueling=True):
-        super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma, tau)
-        self.dueling = dueling
-        self.Save_Path = 'Models'
-        if not os.path.exists(self.Save_Path):
-            os.makedirs(self.Save_Path)
-        self.scores, self.episodes, self.average = [], [], []
+                 dueling=True, ddqn=True, USE_PER=True):
 
         self.ROWS = 160
         self.COLS = 240
@@ -23,14 +17,18 @@ class Conv_D3QNAgent(D3QNAgent):
 
         self.image_memory = np.zeros((self.REM_STEP, self.ROWS, self.COLS))
         self.state_size = (self.REM_STEP, self.ROWS, self.COLS)
+        self.Save_Path = 'Models'
+        if not os.path.exists(self.Save_Path):
+            os.makedirs(self.Save_Path)
+        self.scores, self.episodes, self.average = [], [], []
 
-        # create main model and target model
-        self.model = CNNModel(input_shape=self.state_size, action_space=self.action_size,
-                              learning_rate=self.learning_rate, dueling=self.dueling)
-        self.target_model = CNNModel(input_shape=self.state_size, action_space=self.action_size,
-                                     learning_rate=self.learning_rate, dueling=self.dueling)
+        super().__init__(self.state_size, action_size, epsilon_decay, memory_size, gamma, tau,
+                         dueling, ddqn, USE_PER)
 
         # after some time interval update the target model to be same with model
+
+    def _init_models(self, state_size, action_size, learning_rate, dueling):
+        return CNNModel(state_size, action_size, learning_rate, dueling)
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
@@ -165,9 +163,11 @@ class Conv_D3QNAgent(D3QNAgent):
         self.update_target_model(self.tau)
 
     def test(self, env):
-        self.load(self.Model_name)
-        for e in range(self.EPISODES):
-            state = self.reset()
+        EPISODES = 100
+        for e in range(EPISODES):
+            env.reset()
+            img = env.render(mode='rgb_array')
+            state = self.reset_env(img)
             done = False
             i = 0
             while not done:
@@ -175,5 +175,5 @@ class Conv_D3QNAgent(D3QNAgent):
                 next_state, reward, done, _ = env.step(action)
                 i += 1
                 if done:
-                    print("episode: {}/{}, score: {}".format(e, self.EPISODES, i))
+                    print("episode: {}/{}, score: {}".format(e, EPISODES, i))
                     break

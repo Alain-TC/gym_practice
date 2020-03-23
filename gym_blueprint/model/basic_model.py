@@ -102,10 +102,10 @@ def CNNModel(input_shape, action_space, learning_rate, dueling):
     X = Flatten()(X)
     # 'Dense' is the basic form of a neural network layer
     # Input Layer of state size(4) and Hidden Layer with 512 nodes
-    X = Dense(512, activation="relu", kernel_initializer='he_uniform')(X)
+    #X = Dense(512, activation="relu", kernel_initializer='he_uniform')(X)
 
     # Hidden layer with 256 nodes
-    X = Dense(256, activation="relu", kernel_initializer='he_uniform')(X)
+    #X = Dense(256, activation="relu", kernel_initializer='he_uniform')(X)
 
     # Hidden layer with 64 nodes
     X = Dense(64, activation="relu", kernel_initializer='he_uniform')(X)
