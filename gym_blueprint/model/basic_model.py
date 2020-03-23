@@ -1,16 +1,17 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import tensorflow as tf
-from keras.models import Model, load_model
+from keras.models import Model
 from keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
 from keras.optimizers import Adam, RMSprop
 from keras import backend as K
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 """Huber loss for Q Learning
 References: https://en.wikipedia.org/wiki/Huber_loss
             https://www.tensorflow.org/api_docs/python/tf/losses/huber_loss
 """
+
 
 def _huber_loss(y_true, y_pred, clip_delta=1.0):
     error = y_true - y_pred
@@ -45,8 +46,10 @@ def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
         # Output Layer with # of actions: 2 nodes (left, right)
         X = Dense(output_shape, activation="linear", kernel_initializer='he_uniform')(X)
 
-    model = Model(inputs = X_input, outputs = X, name='CartPole D3QN model')
-    #model.compile(loss="mean_squared_error", optimizer=RMSprop(lr=0.00025, rho=0.95, epsilon=0.01), metrics=["accuracy"])
+    model = Model(inputs=X_input, outputs=X, name='CartPole D3QN model')
+
+    # model.compile(loss="mean_squared_error", optimizer=RMSprop(lr=0.00025, rho=0.95, epsilon=0.01),
+    # metrics=["accuracy"])
     model.compile(loss=_huber_loss, optimizer=Adam(lr=learning_rate))
 
     model.summary()

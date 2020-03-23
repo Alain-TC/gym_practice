@@ -1,9 +1,6 @@
-from keras.models import Sequential
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-from keras.layers import Dense
-from keras.optimizers import Adam
 from .basic_agent import Agent
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 class DQNAgent(Agent):

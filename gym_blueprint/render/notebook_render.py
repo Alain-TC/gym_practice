@@ -1,29 +1,22 @@
-import gym
-from gym import logger as gymlogger
-from gym.wrappers import Monitor
-gymlogger.set_level(40) #error only
-#import tensorflow as tf
-import numpy as np
-import random
-import matplotlib
-import matplotlib.pyplot as plt
-import math
 import glob
 import io
 import base64
-from IPython.display import HTML
-
-from IPython import display as ipythondisplay
-
 from pyvirtualdisplay import Display
+from IPython.display import HTML
+from IPython import display as ipythondisplay
+from gym import logger as gymlogger
+from gym.wrappers import Monitor
+gymlogger.set_level(40)
+
+
 display = Display(visible=0, size=(1400, 900))
 display.start()
+
 
 """
 Utility functions to enable video recording of gym environment and displaying it
 To enable video, just do "env = wrap_env(env)""
 """
-
 
 def show_video():
     mp4list = glob.glob('video/*.mp4')

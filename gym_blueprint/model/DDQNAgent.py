@@ -1,13 +1,5 @@
-# -*- coding: utf-8 -*-
 import random
-import gym
 import numpy as np
-from collections import deque
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.optimizers import Adam
-from keras import backend as K
-import tensorflow as tf
 from .replay_memory.memory import Memory
 from .basic_agent import Agent
 from .basic_model import SmallModel
@@ -101,7 +93,6 @@ class DDQNAgent(Agent):
                     target[i][action[i]] = reward[i] + self.gamma * (np.amax(target_next[i]))
 
                     # Train the Neural Network with batches
-
 
             if self.USE_PER:
                 absolute_errors = np.abs(target_old[i] - target[i])

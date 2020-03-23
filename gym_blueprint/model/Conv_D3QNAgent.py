@@ -1,16 +1,10 @@
 import random
-import gym
+import os
 import pylab
 import numpy as np
-from collections import deque
-from keras.models import Model, load_model
-from keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
-from keras.optimizers import Adam, RMSprop
-from keras import backend as K
 import cv2
 from .D3QNAgent import D3QNAgent
 from .basic_model import CNNModel
-import os
 
 
 class Conv_D3QNAgent(D3QNAgent):
@@ -19,7 +13,8 @@ class Conv_D3QNAgent(D3QNAgent):
         super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma, tau)
         self.dueling = dueling
         self.Save_Path = 'Models'
-        if not os.path.exists(self.Save_Path): os.makedirs(self.Save_Path)
+        if not os.path.exists(self.Save_Path):
+            os.makedirs(self.Save_Path)
         self.scores, self.episodes, self.average = [], [], []
 
         self.ROWS = 160
@@ -58,11 +53,14 @@ class Conv_D3QNAgent(D3QNAgent):
         dueling = ''
         greedy = ''
         PER = ''
-        if self.ddqn: dqn = 'DDQN_'
+        if self.ddqn:
+            dqn = 'DDQN_'
         softupdate = '_soft'
-        if self.dueling: dueling = '_Dueling'
+        if self.dueling:
+            dueling = '_Dueling'
         greedy = '_Greedy'
-        if self.USE_PER: PER = '_PER'
+        if self.USE_PER:
+            PER = '_PER'
         try:
             pylab.savefig(dqn + softupdate + dueling + greedy + PER + "_CNN.png")
         except OSError:
@@ -92,7 +90,7 @@ class Conv_D3QNAgent(D3QNAgent):
         return np.expand_dims(self.image_memory, axis=0)
 
     def reset_env(self, img):
-        for i in range(self.REM_STEP):
+        for _ in range(self.REM_STEP):
             state = self.GetImage(img)
         return state
 
@@ -120,12 +118,12 @@ class Conv_D3QNAgent(D3QNAgent):
         # do this before prediction
         # for speedup, this could be done on the tensor level
         # but easier to understand using a loop
-        for i in range(len(minibatch)):
-            state[i] = minibatch[i][0]
-            action.append(minibatch[i][1])
-            reward.append(minibatch[i][2])
-            next_state[i] = minibatch[i][3]
-            done.append(minibatch[i][4])
+        for i, elem in enumerate(minibatch):
+            state[i] = elem[0]
+            action.append(elem[1])
+            reward.append(elem[2])
+            next_state[i] = elem[3]
+            done.append(elem[4])
 
         # do batch prediction to save speed
         # predict Q-values for starting state using the main network
@@ -166,41 +164,7 @@ class Conv_D3QNAgent(D3QNAgent):
         self.model.fit(state, target, batch_size=self.batch_size, verbose=0)
         self.update_target_model(self.tau)
 
-
-    def run(self):
-        decay_step = 0
-        for e in range(self.EPISODES):
-            state = self.reset()
-            done = False
-            i = 0
-            while not done:
-                decay_step += 1
-                action, explore_probability = self.act(state, decay_step)
-                next_state, reward, done, _ = self.step(action)
-                if not done or i == self.env._max_episode_steps - 1:
-                    reward = reward
-                else:
-                    reward = -100
-                self.memorize(state, action, reward, next_state, done)
-                state = next_state
-                i += 1
-                if done:
-                    # every REM_STEP update target model
-                    if e % self.REM_STEP == 0:
-                        self.update_target_model()
-
-                    # every episode, plot the result
-                    average = self.PlotModel(i, e)
-
-                    print("episode: {}/{}, score: {}, e: {:.2}, average: {}".format(e, self.EPISODES, i,
-                                                                                    explore_probability, average))
-                    if i == self.env._max_episode_steps:
-                        print("Saving trained model to", self.Model_name)
-                        # self.save(self.Model_name)
-                        break
-                self.replay()
-
-    def test(self):
+    def test(self, env):
         self.load(self.Model_name)
         for e in range(self.EPISODES):
             state = self.reset()

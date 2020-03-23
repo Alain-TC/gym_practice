@@ -16,7 +16,7 @@ class BattleshipEnv(gym.Env):
         # state
         self._board = np.zeros(self.shape, dtype=np.bool)
         for i in range(3):
-            self._board[2,1+i] = True
+            self._board[2, 1 + i] = True
 
         self.observed_board = np.zeros(self.shape)
 
@@ -25,22 +25,22 @@ class BattleshipEnv(gym.Env):
 
         self.state = (self.observed_board, self._board)
 
-        #super(BattleshipEnv, self).__init__()
+        # super(BattleshipEnv, self).__init__()
 
     def step(self, action):
-        action_x = action//6
-        action_y = action - 6 * (action//6)
+        action_x = action // 6
+        action_y = action - 6 * (action // 6)
         action = (action_x, action_y)
 
         state = self.state
-        if self.observed_board[action]!=0:
+        if self.observed_board[action] != 0:
             print("Nimp")
             return np.array(self.state), -1000, True, {}
 
         else:
             if self._board[action] == True:
                 self.observed_board[action] = 2
-                #self.state = (self.observed_board, self._board)
+                # self.state = (self.observed_board, self._board)
                 self.hit += 1
                 if self.hit == self.cases:
                     print("Victory")
@@ -69,7 +69,7 @@ class BattleshipEnv(gym.Env):
         # state
         self._board = np.zeros(self.shape, dtype=np.bool)
         for i in range(3):
-            self._board[2,1+i] = True
+            self._board[2, 1 + i] = True
 
         self.observed_board = np.zeros(self.shape)
         self.state = (self.observed_board, self._board)

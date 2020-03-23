@@ -2,9 +2,10 @@ import numpy as np
 from .sumtree import SumTree
 
 
-class Memory(object):  # stored as ( state, action, reward, next_state ) in SumTree
+class Memory():  # stored as ( state, action, reward, next_state ) in SumTree
     PER_e = 0.01  # Hyperparameter that we use to avoid some experiences to have 0 probability of being taken
-    PER_a = 0.6  # Hyperparameter that we use to make a tradeoff between taking only exp with high priority and sampling randomly
+    PER_a = 0.6  # Hyperparameter that we use to make a tradeoff between taking only exp with high priority
+    # and sampling randomly
     PER_b = 0.4  # importance-sampling, from initial value increasing to 1
 
     PER_b_increment_per_sampling = 0.001
@@ -19,7 +20,8 @@ class Memory(object):  # stored as ( state, action, reward, next_state ) in SumT
         # Find the max priority
         max_priority = np.max(self.tree.tree[-self.tree.capacity:])
 
-        # If the max priority = 0 we can't put priority = 0 since this experience will never have a chance to be selected
+        # If the max priority = 0 we can't put priority = 0 since this experience
+        # will never have a chance to be selected
         # So we use a minimum priority
         if max_priority == 0:
             max_priority = self.absolute_error_upper
@@ -42,7 +44,7 @@ class Memory(object):  # stored as ( state, action, reward, next_state ) in SumT
             value = np.random.uniform(a, b)
 
             # Experience that correspond to each value is retrieved
-            index, priority, data = self.tree.get_leaf(value)
+            index, _, data = self.tree.get_leaf(value)
 
             b_idx[i] = index
 

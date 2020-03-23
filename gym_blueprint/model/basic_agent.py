@@ -1,16 +1,11 @@
-import os
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import random
-import gym
-import numpy as np
 from collections import deque
-from keras.models import Model, load_model
+import os
+import numpy as np
+from keras.models import Model, model_from_json
 from keras.layers import Input, Dense
-from keras.optimizers import Adam, RMSprop
-from keras.models import model_from_json
-from .basic_model import SmallModel
-from .basic_model import SmallModel
+from keras.optimizers import RMSprop
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 def OurModel(input_shape, action_space):
@@ -57,7 +52,6 @@ class Agent:
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            #         explore_probability = self.epsilon_min + (self.epsilon - self.epsilon_min) * np.exp(-self.epsilon_decay * decay_step)
 
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -65,8 +59,7 @@ class Agent:
     def act(self, state):
         if np.random.random() <= self.epsilon:
             return random.randrange(self.action_size)
-        else:
-            return np.argmax(self.model.predict(state))
+        return np.argmax(self.model.predict(state))
 
     def replay(self, batch_size):
         self.batch_size = batch_size

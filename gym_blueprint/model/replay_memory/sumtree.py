@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class SumTree(object):
+class SumTree():
     data_pointer = 0
 
     # Here we initialize the tree with all nodes = 0, and initialize the data with all values = 0
@@ -65,12 +65,12 @@ class SumTree(object):
             if left_child_index >= len(self.tree):
                 leaf_index = parent_index
                 break
-            else:  # downward search, always search for a higher priority node
-                if v <= self.tree[left_child_index]:
-                    parent_index = left_child_index
-                else:
-                    v -= self.tree[left_child_index]
-                    parent_index = right_child_index
+
+            if v <= self.tree[left_child_index]:
+                parent_index = left_child_index
+            else:
+                v -= self.tree[left_child_index]
+                parent_index = right_child_index
 
         data_index = leaf_index - self.capacity + 1
 
