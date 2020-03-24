@@ -8,29 +8,6 @@ from keras.optimizers import RMSprop
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
-def OurModel(input_shape, action_space):
-    X_input = Input(input_shape)
-
-    # 'Dense' is the basic form of a neural network layer
-    # Input Layer of state size(4) and Hidden Layer with 512 nodes
-    X = Dense(512, input_shape=input_shape, activation="relu", kernel_initializer='he_uniform')(X_input)
-
-    # Hidden layer with 256 nodes
-    X = Dense(256, activation="relu", kernel_initializer='he_uniform')(X)
-
-    # Hidden layer with 64 nodes
-    X = Dense(64, activation="relu", kernel_initializer='he_uniform')(X)
-
-    # Output Layer with # of actions: 2 nodes (left, right)
-    X = Dense(action_space, activation="linear", kernel_initializer='he_uniform')(X)
-
-    model = Model(inputs=X_input, outputs=X, name='CartPole DQN model')
-    model.compile(loss="mse", optimizer=RMSprop(lr=0.00025, rho=0.95, epsilon=0.01), metrics=["accuracy"])
-
-    model.summary()
-    return model
-
-
 class Agent:
     def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, batch_size=64):
         # by default, CartPole-v1 has max episode steps = 500
@@ -46,8 +23,8 @@ class Agent:
         self.learning_rate = 0.001
         self.model = None
 
-    def init_models(self, model):
-        self.model = model
+    def _init_models(self, state_size, action_size, learning_rate, dueling):
+        self.model = None
 
     def update_epsilon(self):
         if self.epsilon > self.epsilon_min:
