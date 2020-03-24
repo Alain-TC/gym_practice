@@ -1,14 +1,17 @@
 import random
 from collections import deque
 import os
+import pylab
 import numpy as np
 from keras.models import model_from_json
+
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 class Agent:
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, batch_size=64):
-        # by default, CartPole-v1 has max episode steps = 500
+    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
+                 batch_size=32):
+        self.env = env
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=memory_size)
@@ -20,6 +23,7 @@ class Agent:
         self.epsilon_decay = epsilon_decay
         self.learning_rate = 0.001
         self.model = None
+        self.scores, self.episodes, self.average = [], [], []
 
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         self.model = None
@@ -33,8 +37,29 @@ class Agent:
 
     def act(self, state):
         if np.random.random() <= self.epsilon:
-            return random.randrange(self.action_size)
+            return self.env.action_space.sample()
         return np.argmax(self.model.predict(state))
+
+    def run(self, trials, name="default"):
+        for episode in range(trials):
+            list_reward = []
+            state = self.env.reset()
+            state = np.reshape(state, [1, self.state_size])
+            while True:
+                action = self.act(state)
+                next_state, reward, done, _ = self.env.step(action)
+                list_reward.append(reward)
+                next_state = np.reshape(next_state, [1, self.state_size])
+                self.memorize(state, action, reward, next_state, done)
+                state = next_state
+                if done:
+                    total_reward = np.sum(list_reward)
+                    print("episode: {}/{}, e: {:.2}, total reward: {}"
+                          .format(episode, trials, self.epsilon, total_reward))
+                    self.plotModel(total_reward, episode, name)
+                    break
+                self.replay(self.batch_size)
+            self.update_epsilon()
 
     def replay(self, batch_size):
         self.batch_size = batch_size
@@ -91,3 +116,19 @@ class Agent:
         json_file.close()
         self.model = model_from_json(loaded_model_json)
         print("Loaded model architecture")
+
+    pylab.figure(figsize=(18, 9))
+
+    def plotModel(self, score, episode, name):
+        self.scores.append(score)
+        self.episodes.append(episode)
+        self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
+        pylab.plot(self.episodes, self.scores, 'b')
+        pylab.plot(self.episodes, self.average, 'r')
+        pylab.ylabel('Score', fontsize=18)
+        pylab.xlabel('Steps', fontsize=18)
+        try:
+            pylab.savefig("{}.png".format(name))
+        except OSError:
+            pass
+        return str(self.average[-1])[:5]

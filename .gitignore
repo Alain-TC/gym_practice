@@ -10,5 +10,6 @@
 */models/finalized_*
 */models/performances/
 */models/performances/*
-*/models/performances
-kaggle_blueprint/models/performances
+*/models/performances*
+*.png
+
