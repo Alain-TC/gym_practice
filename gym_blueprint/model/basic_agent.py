@@ -2,9 +2,7 @@ import random
 from collections import deque
 import os
 import numpy as np
-from keras.models import Model, model_from_json
-from keras.layers import Input, Dense
-from keras.optimizers import RMSprop
+from keras.models import model_from_json
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 

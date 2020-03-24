@@ -4,8 +4,8 @@ from keras.models import Model
 from keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
 from keras.optimizers import Adam, RMSprop
 from keras import backend as K
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 """Huber loss for Q Learning
 References: https://en.wikipedia.org/wiki/Huber_loss
@@ -21,6 +21,7 @@ def _huber_loss(y_true, y_pred, clip_delta=1.0):
     quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
 
     return K.mean(tf.where(cond, squared_loss, quadratic_loss))
+
 
 def create_actor_model(input_shape, output_shape, learning_rate, dueling=False):
     state_input = Input(shape=input_shape)
@@ -41,7 +42,7 @@ def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
     X_input = Input(input_shape)
     X = X_input
     X = Dense(64, input_shape=input_shape, activation="relu")(X)
-    #X = Dense(128, activation="relu")(X)
+    # X = Dense(128, activation="relu")(X)
     X = Dense(64, activation="relu")(X)
 
     if dueling:

@@ -1,28 +1,19 @@
-
-
-
-
-
-
-import gym
-import numpy as np
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input
-from keras.layers.merge import Add, Multiply
-from keras.optimizers import Adam
-import keras.backend as K
-import tensorflow as tf
-import random
 from collections import deque
+import random
+import numpy as np
+from keras.models import Model
+from keras.layers import Dense, Input
+from keras.layers.merge import Add
+from keras.optimizers import Adam
+import tensorflow as tf
 from .basic_agent import Agent
 from .replay_memory.memory import Memory
-from .basic_model import SmallModel
-
 
 '''
 Pathwise Derivative Policy Gradient Methods
 Actor Critic with target networks
 '''
+
 
 class ActorCritic(Agent):
     def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
@@ -37,7 +28,6 @@ class ActorCritic(Agent):
         self.memory = deque(maxlen=memory_size)
         self.MEMORY = Memory(memory_size)
 
-
         # ===================================================================== #
         #                              Actor Model                              #
         # ===================================================================== #
@@ -46,16 +36,11 @@ class ActorCritic(Agent):
         _, self.target_actor_model = self.create_actor_model(self.state_size, self.action_size[0], self.learning_rate)
         self.actor_critic_grad = tf.placeholder(tf.float32, [None, self.action_size[0]])
 
-
-
-        actor_model_weights = self.actor_model.trainable_weights
-        self.actor_grads = tf.gradients(self.actor_model.output, actor_model_weights, -self.actor_critic_grad)
-        grads = zip(self.actor_grads, actor_model_weights)
-        #self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(grads)
+        # actor_model_weights = self.actor_model.trainable_weights
+        # self.actor_grads = tf.gradients(self.actor_model.output, actor_model_weights, -self.actor_critic_grad)
+        # grads = zip(self.actor_grads, actor_model_weights)
+        # self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(grads)
         self.optimize = tf.keras.optimizers.Adam(self.learning_rate)
-
-        self.actor_critic_grad = tf.placeholder(tf.float32,
-                                                [None, self.action_size[ 0]])  # where we will feed de/dC (from critic)
 
         # ===================================================================== #
         #                              Critic Model                             #
@@ -123,7 +108,8 @@ class ActorCritic(Agent):
         grads = tf.gradients(state, predicted_action, unconnected_gradients='zero')
 
         # Longest step, to be optimized
-        actor_grads = tf.gradients(self.actor_model.output, self.actor_model.trainable_weights, grads)  # dC/dA (from actor)
+        actor_grads = tf.gradients(self.actor_model.output, self.actor_model.trainable_weights,
+                                   grads)  # dC/dA (from actor)
         grads = zip(actor_grads, self.actor_model.trainable_weights)
         self.optimize.apply_gradients(grads)
 
@@ -146,8 +132,7 @@ class ActorCritic(Agent):
 
         self.critic_model.fit([state, np.array([x[0][0] for x in action])], reward, verbose=0)
         # BATCH SIZE ???
-        #self.critic_model.fit([cur_state, action], reward, verbose=0)
-
+        # self.critic_model.fit([cur_state, action], reward, verbose=0)
 
     def _update_actor_target(self, tau=1):
         actor_model_weights = self.actor_model.get_weights()
@@ -155,8 +140,8 @@ class ActorCritic(Agent):
 
         # copy weights from model to target_model
         new_weights = []
-        for i in range(len(actor_model_weights)):
-            new_weights.append(tau * actor_model_weights[i] + (1 - tau) * actor_target_weights[i])
+        for i, actor_model_weight in enumerate(actor_model_weights):
+            new_weights.append(tau * actor_model_weights[i] + (1 - tau) * actor_model_weight)
         self.target_actor_model.set_weights(new_weights)
 
     def _update_critic_target(self, tau):
@@ -164,8 +149,8 @@ class ActorCritic(Agent):
         critic_target_weights = self.target_critic_model.get_weights()
 
         new_weights = []
-        for i in range(len(critic_target_weights)):
-            new_weights.append(tau * critic_model_weights[i] + (1 - tau) * critic_target_weights[i])
+        for i, critic_target_weight in enumerate(critic_target_weights):
+            new_weights.append(tau * critic_model_weights[i] + (1 - tau) * critic_target_weight)
         self.target_critic_model.set_weights(new_weights)
 
     def update_target(self, tau):
