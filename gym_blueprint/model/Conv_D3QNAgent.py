@@ -30,42 +30,6 @@ class Conv_D3QNAgent(D3QNAgent):
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         return CNNModel(state_size, action_size, learning_rate, dueling)
 
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  # returns action
-
-    pylab.figure(figsize=(18, 9))
-
-    def PlotModel(self, score, episode):
-        self.scores.append(score)
-        self.episodes.append(episode)
-        self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
-        pylab.plot(self.episodes, self.average, 'r')
-        pylab.plot(self.episodes, self.scores, 'b')
-        pylab.ylabel('Score', fontsize=18)
-        pylab.xlabel('Steps', fontsize=18)
-        dqn = 'DQN_'
-        softupdate = ''
-        dueling = ''
-        greedy = ''
-        PER = ''
-        if self.ddqn:
-            dqn = 'DDQN_'
-        softupdate = '_soft'
-        if self.dueling:
-            dueling = '_Dueling'
-        greedy = '_Greedy'
-        if self.USE_PER:
-            PER = '_PER'
-        try:
-            pylab.savefig(dqn + softupdate + dueling + greedy + PER + "_CNN.png")
-        except OSError:
-            pass
-
-        return str(self.average[-1])[:5]
-
     def imshow(self, image, rem_step=0):
         cv2.imshow("cartpole" + str(rem_step), image[rem_step, ...])
         if cv2.waitKey(25) & 0xFF == ord("q"):

@@ -1,13 +1,15 @@
 import random
 from collections import deque
 import os
+import pylab
 import numpy as np
 from keras.models import model_from_json
+
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 class Agent:
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, batch_size=64):
+    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, batch_size=32):
         # by default, CartPole-v1 has max episode steps = 500
         self.state_size = state_size
         self.action_size = action_size
@@ -20,6 +22,7 @@ class Agent:
         self.epsilon_decay = epsilon_decay
         self.learning_rate = 0.001
         self.model = None
+        self.scores, self.episodes, self.average = [], [], []
 
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         self.model = None
@@ -31,9 +34,9 @@ class Agent:
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
+    def act(self, state, env):
         if np.random.random() <= self.epsilon:
-            return random.randrange(self.action_size)
+            return env.action_space.sample()
         return np.argmax(self.model.predict(state))
 
     def replay(self, batch_size):
@@ -91,3 +94,18 @@ class Agent:
         json_file.close()
         self.model = model_from_json(loaded_model_json)
         print("Loaded model architecture")
+
+    pylab.figure(figsize=(18, 9))
+    def PlotModel(self, score, episode, name):
+        self.scores.append(score)
+        self.episodes.append(episode)
+        self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
+        pylab.plot(self.episodes, self.average, 'r')
+        pylab.plot(self.episodes, self.scores, 'b')
+        pylab.ylabel('Score', fontsize=18)
+        pylab.xlabel('Steps', fontsize=18)
+        try:
+            pylab.savefig("{}.png".format(name))
+        except OSError:
+            pass
+        return str(self.average[-1])[:5]

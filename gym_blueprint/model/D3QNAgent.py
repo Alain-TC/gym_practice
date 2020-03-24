@@ -38,12 +38,6 @@ class D3QNAgent(Agent):
         else:
             self.memory.append((experience))
 
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  # returns action
-
     def replay(self, batch_size):
         self.batch_size = batch_size
         # if len(self.memory) < self.train_start:
