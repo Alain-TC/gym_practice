@@ -6,9 +6,9 @@ from .basic_model import SmallModel
 
 
 class D3QNAgent(Agent):
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
+    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
                  dueling=True, ddqn=True, USE_PER=True):
-        super().__init__(state_size, action_size, epsilon_decay, memory_size, gamma)
+        super().__init__(env, state_size, action_size, epsilon_decay, memory_size, gamma)
 
         self.USE_PER = USE_PER
         self.dueling = dueling
@@ -37,12 +37,6 @@ class D3QNAgent(Agent):
             self.MEMORY.store(experience)
         else:
             self.memory.append((experience))
-
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  # returns action
 
     def replay(self, batch_size):
         self.batch_size = batch_size

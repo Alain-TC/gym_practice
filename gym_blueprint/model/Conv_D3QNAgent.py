@@ -1,6 +1,5 @@
 import random
 import os
-import pylab
 import numpy as np
 import cv2
 from .D3QNAgent import D3QNAgent
@@ -8,7 +7,7 @@ from .basic_model import CNNModel
 
 
 class Conv_D3QNAgent(D3QNAgent):
-    def __init__(self, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
+    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
                  dueling=True, ddqn=True, USE_PER=True):
 
         self.ROWS = 160
@@ -22,49 +21,13 @@ class Conv_D3QNAgent(D3QNAgent):
             os.makedirs(self.Save_Path)
         self.scores, self.episodes, self.average = [], [], []
 
-        super().__init__(self.state_size, action_size, epsilon_decay, memory_size, gamma, tau,
+        super().__init__(env, self.state_size, action_size, epsilon_decay, memory_size, gamma, tau,
                          dueling, ddqn, USE_PER)
 
         # after some time interval update the target model to be same with model
 
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         return CNNModel(state_size, action_size, learning_rate, dueling)
-
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  # returns action
-
-    pylab.figure(figsize=(18, 9))
-
-    def PlotModel(self, score, episode):
-        self.scores.append(score)
-        self.episodes.append(episode)
-        self.average.append(sum(self.scores[-50:]) / len(self.scores[-50:]))
-        pylab.plot(self.episodes, self.average, 'r')
-        pylab.plot(self.episodes, self.scores, 'b')
-        pylab.ylabel('Score', fontsize=18)
-        pylab.xlabel('Steps', fontsize=18)
-        dqn = 'DQN_'
-        softupdate = ''
-        dueling = ''
-        greedy = ''
-        PER = ''
-        if self.ddqn:
-            dqn = 'DDQN_'
-        softupdate = '_soft'
-        if self.dueling:
-            dueling = '_Dueling'
-        greedy = '_Greedy'
-        if self.USE_PER:
-            PER = '_PER'
-        try:
-            pylab.savefig(dqn + softupdate + dueling + greedy + PER + "_CNN.png")
-        except OSError:
-            pass
-
-        return str(self.average[-1])[:5]
 
     def imshow(self, image, rem_step=0):
         cv2.imshow("cartpole" + str(rem_step), image[rem_step, ...])
@@ -92,10 +55,31 @@ class Conv_D3QNAgent(D3QNAgent):
             state = self.GetImage(img)
         return state
 
-    def step(self, action, env):
-        next_state, reward, done, info = env.step(action)
-        next_state = self.GetImage(env.render(mode='rgb_array'))
+    def step(self, action):
+        next_state, reward, done, info = self.env.step(action)
+        next_state = self.GetImage(self.env.render(mode='rgb_array'))
         return next_state, reward, done, info
+
+    def run(self, trials, name="default"):
+        for episode in range(trials):
+            list_reward = []
+            self.env.reset()
+            img = self.env.render(mode='rgb_array')
+            state = self.reset_env(img)
+            while True:
+                action = self.act(state)
+                next_state, reward, done, _ = self.step(action)
+                list_reward.append(reward)
+                self.memorize(state, action, reward, next_state, done)
+                state = next_state
+                if done:
+                    total_reward = np.sum(list_reward)
+                    print("episode: {}/{}, e: {:.2}, total reward: {}"
+                          .format(episode, trials, self.epsilon, total_reward))
+                    self.plotModel(total_reward, episode, name)
+                    break
+                self.replay(self.batch_size)
+            self.update_epsilon()
 
     def replay(self, batch_size):
         self.batch_size = batch_size

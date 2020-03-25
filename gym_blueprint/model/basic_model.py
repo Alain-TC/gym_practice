@@ -4,8 +4,8 @@ from keras.models import Model
 from keras.layers import Input, Dense, Lambda, Add, Conv2D, Flatten
 from keras.optimizers import Adam, RMSprop
 from keras import backend as K
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 """Huber loss for Q Learning
 References: https://en.wikipedia.org/wiki/Huber_loss
@@ -23,13 +23,26 @@ def _huber_loss(y_true, y_pred, clip_delta=1.0):
     return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
 
+def create_actor_model(input_shape, output_shape, learning_rate, dueling=False):
+    state_input = Input(shape=input_shape)
+    h1 = Dense(24, activation='relu')(state_input)
+    h2 = Dense(48, activation='relu')(h1)
+    h3 = Dense(24, activation='relu')(h2)
+    output = Dense(output_shape, activation='relu')(h3)
+
+    model = Model(input=state_input, output=output)
+    adam = Adam(lr=learning_rate)
+    model.compile(loss="mse", optimizer=adam)
+    return state_input, model
+
+
 def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
     # Neural Net for Deep-Q learning Model
     input_shape = (input_shape,)
     X_input = Input(input_shape)
     X = X_input
     X = Dense(64, input_shape=input_shape, activation="relu")(X)
-    X = Dense(64, activation="relu")(X)
+    # X = Dense(128, activation="relu")(X)
     X = Dense(64, activation="relu")(X)
 
     if dueling:
@@ -102,10 +115,10 @@ def CNNModel(input_shape, action_space, learning_rate, dueling):
     X = Flatten()(X)
     # 'Dense' is the basic form of a neural network layer
     # Input Layer of state size(4) and Hidden Layer with 512 nodes
-    #X = Dense(512, activation="relu", kernel_initializer='he_uniform')(X)
+    X = Dense(512, activation="relu", kernel_initializer='he_uniform')(X)
 
     # Hidden layer with 256 nodes
-    #X = Dense(256, activation="relu", kernel_initializer='he_uniform')(X)
+    X = Dense(256, activation="relu", kernel_initializer='he_uniform')(X)
 
     # Hidden layer with 64 nodes
     X = Dense(64, activation="relu", kernel_initializer='he_uniform')(X)
