@@ -10,7 +10,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 class Agent:
     def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
-                 batch_size=32):
+                 batch_size=32, plotname="default_agent_name"):
         self.env = env
         self.state_size = state_size
         self.action_size = action_size
@@ -24,6 +24,7 @@ class Agent:
         self.learning_rate = 0.001
         self.model = None
         self.scores, self.episodes, self.average = [], [], []
+        self.plotname = plotname
 
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         self.model = None
@@ -40,7 +41,7 @@ class Agent:
             return self.env.action_space.sample()
         return np.argmax(self.model.predict(state))
 
-    def run(self, trials, name="default"):
+    def run(self, trials):
         for episode in range(trials):
             list_reward = []
             state = self.env.reset()
@@ -56,7 +57,7 @@ class Agent:
                     total_reward = np.sum(list_reward)
                     print("episode: {}/{}, e: {:.2}, total reward: {}"
                           .format(episode, trials, self.epsilon, total_reward))
-                    self.plotModel(total_reward, episode, name)
+                    self.plotModel(total_reward, episode, self.plotname)
                     break
                 self.replay(self.batch_size)
             self.update_epsilon()

@@ -42,7 +42,7 @@ def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
     X_input = Input(input_shape)
     X = X_input
     X = Dense(64, input_shape=input_shape, activation="relu")(X)
-    # X = Dense(128, activation="relu")(X)
+    X = Dense(128, activation="relu")(X)
     X = Dense(64, activation="relu")(X)
 
     if dueling:
@@ -59,7 +59,7 @@ def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
         # Output Layer with # of actions: 2 nodes (left, right)
         X = Dense(output_shape, activation="linear", kernel_initializer='he_uniform')(X)
 
-    model = Model(inputs=X_input, outputs=X, name='CartPole D3QN model')
+    model = Model(inputs=X_input, outputs=X)
 
     # model.compile(loss="mean_squared_error", optimizer=RMSprop(lr=0.00025, rho=0.95, epsilon=0.01),
     # metrics=["accuracy"])

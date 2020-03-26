@@ -15,6 +15,7 @@ from tensorflow.python import keras
 from tensorflow.python.keras import layers
 from .recording import record
 from keras.utils import plot_model
+from .basic_agent import Agent
 
 tf.enable_eager_execution()
 
@@ -49,7 +50,6 @@ class MasterAgent():
         self.state_size = state_size
         self.action_size = action_size
         self.opt = tf.train.AdamOptimizer(self.lr, use_locking=True)
-        print(self.state_size, self.action_size)
 
         self.global_model = ActorCriticModel(self.state_size, self.action_size)  # global network
         self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
@@ -105,7 +105,8 @@ class Memory:
         self.rewards = []
 
 
-class Worker(threading.Thread):
+class Worker(threading.Thread, Agent):
+    # Temp
     # Set up global variables across different threads
     global_episode = 0
     # Moving average reward
@@ -129,6 +130,9 @@ class Worker(threading.Thread):
         self.ep_loss = 0.0
         self.max_episodes = max_episodes
         self.gamma = 0.99
+
+        # temp
+        self.scores, self.episodes, self.average = [], [], []
 
     def run(self, update_freq=20):
         total_step = 1
@@ -176,6 +180,8 @@ class Worker(threading.Thread):
                     time_count = 0
 
                     if done:  # done and print information
+                        self.plotModel(score=ep_reward, episode=Worker.global_episode, name="actor_3_critic")
+
                         Worker.global_moving_average_reward = \
                             record(Worker.global_episode, ep_reward, self.worker_idx,
                                    Worker.global_moving_average_reward, self.result_queue,

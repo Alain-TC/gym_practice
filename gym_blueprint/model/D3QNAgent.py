@@ -1,19 +1,19 @@
 import random
 import numpy as np
-from .replay_memory.memory import Memory
+from .replay_memory.memory import PERMemory
 from .basic_agent import Agent
 from .basic_model import SmallModel
 
 
 class D3QNAgent(Agent):
     def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
-                 dueling=True, ddqn=True, USE_PER=True):
-        super().__init__(env, state_size, action_size, epsilon_decay, memory_size, gamma)
+                 batch_size=32, dueling=True, ddqn=True, USE_PER=True, plotname="D3QNAgent"):
+        super().__init__(env, state_size, action_size, epsilon_decay, memory_size, gamma, batch_size, plotname)
 
         self.USE_PER = USE_PER
         self.dueling = dueling
         self.ddqn = ddqn
-        self.MEMORY = Memory(memory_size)
+        self.MEMORY = PERMemory(memory_size)
         self.tau = tau
 
         self.model = self._init_models(self.state_size, self.action_size, self.learning_rate, self.dueling)
