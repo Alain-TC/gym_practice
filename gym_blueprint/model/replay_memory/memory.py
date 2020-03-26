@@ -2,7 +2,25 @@ import numpy as np
 from .sumtree import SumTree
 
 
-class Memory():  # stored as ( state, action, reward, next_state ) in SumTree
+
+class Memory:
+    def __init__(self):
+        self.states = []
+        self.actions = []
+        self.rewards = []
+
+    def store(self, state, action, reward):
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+
+    def clear(self):
+        self.states = []
+        self.actions = []
+        self.rewards = []
+
+
+class PERMemory():  # stored as ( state, action, reward, next_state ) in SumTree
     PER_e = 0.01  # Hyperparameter that we use to avoid some experiences to have 0 probability of being taken
     PER_a = 0.6  # Hyperparameter that we use to make a tradeoff between taking only exp with high priority
     # and sampling randomly
