@@ -29,21 +29,25 @@ class ActorCriticModel(keras.Model):
         super(ActorCriticModel, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
-        self.dense1 = layers.Dense(100, activation='relu')
+        self.dense1 = layers.Dense(128, activation='relu')
+        self.dense3 = layers.Dense(128, activation='relu')
         self.policy_logits = layers.Dense(action_size)
-        self.dense2 = layers.Dense(100, activation='relu')
+        self.dense2 = layers.Dense(128, activation='relu')
+        self.dense4 = layers.Dense(128, activation='relu')
         self.values = layers.Dense(1)
 
     def call(self, inputs):
         # Forward pass
         x = self.dense1(inputs)
-        logits = self.policy_logits(x)
+        x3 = self.dense3(x)
+        logits = self.policy_logits(x3)
         v1 = self.dense2(inputs)
-        values = self.values(v1)
+        v4 = self.dense4(v1)
+        values = self.values(v4)
         return logits, values
 
 
-class MasterAgent():
+class MasterAgent(Agent):
     def __init__(self, game_name, state_size, action_size, lr=.001):
         self.lr = lr
         self.game_name = game_name
@@ -53,10 +57,9 @@ class MasterAgent():
 
         self.global_model = ActorCriticModel(self.state_size, self.action_size)  # global network
         self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
-        print("summary" )
+        print("summary")
         self.global_model.summary()
         plot_model(self.global_model, to_file='model_tmtc.png')
-
 
     def train(self):
         res_queue = Queue()
@@ -66,6 +69,7 @@ class MasterAgent():
                           self.global_model,
                           self.opt, res_queue,
                           i, game_name=self.game_name) for i in range(multiprocessing.cpu_count())]
+        # i, game_name = self.game_name) for i in range(1)]
 
         for i, worker in enumerate(workers):
             print("Starting worker {}".format(i))
@@ -83,9 +87,45 @@ class MasterAgent():
         plt.plot(moving_average_rewards)
         plt.ylabel('Moving average ep reward')
         plt.xlabel('Step')
-        #plt.savefig(os.path.join(self.save_dir,
+        # plt.savefig(os.path.join(self.save_dir,
         #                         '{} Moving Average.png'.format(self.game_name)))
         plt.show()
+
+    def test(self, total_episode, render="True", name="A3C_test"):
+        self.scores, self.episodes, self.average = [], [], []
+        self.env = gym.make(self.game_name)
+        mem = Memory()
+        global_episode = 0
+        while global_episode < total_episode:
+            current_state = self.env.reset()
+            mem.clear()
+            ep_reward = 0.
+            ep_steps = 0
+            self.ep_loss = 0
+
+            done = False
+            while not done:  # and ep_steps<500:
+                logits, _ = self.global_model(
+                    tf.convert_to_tensor(current_state[None, :],
+                                         dtype=tf.float32))
+                probs = tf.nn.softmax(logits)
+
+                action = np.random.choice(self.action_size, p=probs.numpy()[0])
+                new_state, reward, done, _ = self.env.step(action)
+                if render:
+                    self.env.render()
+                if done:
+                    reward = -1
+                ep_reward += reward
+                mem.store(current_state, action, reward)
+
+                if done:  # done and print information
+                    self.plotModel(score=ep_reward, episode=global_episode, name=name)
+                    global_episode += 1
+                    print(ep_steps)
+
+                ep_steps += 1
+                current_state = new_state
 
 
 class Memory:
@@ -115,7 +155,7 @@ class Worker(threading.Thread, Agent):
     save_lock = threading.Lock()
 
     def __init__(self, state_size, action_size, global_model, opt, result_queue, idx, game_name,
-                 save_dir='/tmp', max_episodes=1000):
+                 save_dir='/tmp', max_episodes=500):
         super(Worker, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
@@ -146,7 +186,9 @@ class Worker(threading.Thread, Agent):
 
             time_count = 0
             done = False
-            while not done:
+            count = 0
+            while not done and count<500:
+                count += 1
                 logits, _ = self.local_model(
                     tf.convert_to_tensor(current_state[None, :],
                                          dtype=tf.float32))
@@ -204,7 +246,11 @@ class Worker(threading.Thread, Agent):
                 total_step += 1
         self.result_queue.put(None)
 
-    def compute_loss(self, done, new_state, memory, gamma=0.99):
+    def compute_loss(self,
+                     done,
+                     new_state,
+                     memory,
+                     gamma=0.99):
         if done:
             reward_sum = 0.  # terminal
         else:
@@ -222,9 +268,9 @@ class Worker(threading.Thread, Agent):
         logits, values = self.local_model(
             tf.convert_to_tensor(np.vstack(memory.states),
                                  dtype=tf.float32))
-        # Get our advantages
-        advantage = tf.convert_to_tensor(np.array(discounted_rewards)[:, None],
-                                         dtype=tf.float32) - values
+        r = tf.reshape(tf.convert_to_tensor(np.array(discounted_rewards)[:, None], dtype=tf.float32), values.shape)
+        advantage = r - values
+
         # Value loss
         value_loss = advantage ** 2
 
@@ -234,7 +280,11 @@ class Worker(threading.Thread, Agent):
 
         policy_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=memory.actions,
                                                                      logits=logits)
-        policy_loss *= tf.stop_gradient(advantage)
+
+        advantage = tf.reshape(advantage, policy_loss.shape)
+
+        policy_loss = tf.multiply(policy_loss, tf.stop_gradient(advantage))
         policy_loss -= 0.01 * entropy
+        value_loss = tf.reshape(value_loss, policy_loss.shape)
         total_loss = tf.reduce_mean((0.5 * value_loss + policy_loss))
         return total_loss

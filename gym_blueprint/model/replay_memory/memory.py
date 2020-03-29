@@ -2,15 +2,16 @@ import numpy as np
 from .sumtree import SumTree
 
 
-
 class Memory:
     def __init__(self):
         self.states = []
+        self.new_states = []
         self.actions = []
         self.rewards = []
 
     def store(self, state, action, reward):
         self.states.append(state)
+        self.new_states = []
         self.actions.append(action)
         self.rewards.append(reward)
 
