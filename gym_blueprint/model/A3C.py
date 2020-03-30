@@ -28,12 +28,13 @@ class ActorCriticModel(keras.Model):
         super(ActorCriticModel, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
-        self.dense1 = layers.Dense(100, activation='relu')
-        self.dense3 = layers.Dense(100, activation='relu')
-        self.dense5 = layers.Dense(100, activation='relu')
+        self.dense1 = layers.Dense(128, activation='relu')
+        self.dense3 = layers.Dense(64, activation='relu')
+        self.dense5 = layers.Dense(32, activation='relu')
         self.policy_logits = layers.Dense(action_size)
-        self.dense2 = layers.Dense(200, activation='relu')
-        self.dense4 = layers.Dense(200, activation='relu')
+        self.dense2 = layers.Dense(400, activation='relu')
+        #self.dense4 = layers.Dense(64, activation='relu')
+        #self.dense6 = layers.Dense(64, activation='relu')
         self.values = layers.Dense(1)
 
     def call(self, inputs):
@@ -43,35 +44,42 @@ class ActorCriticModel(keras.Model):
         x5 = self.dense5(x3)
         logits = self.policy_logits(x5)
         v1 = self.dense2(inputs)
-        v4 = self.dense4(v1)
-        values = self.values(v4)
+        #v4 = self.dense4(v1)
+        #v6 = self.dense6(v4)
+        values = self.values(v1)
         return logits, values
 
 
 class MasterAgent(Agent):
-    def __init__(self, game_name, state_size, action_size, lr=.0001):
+    def __init__(self, game_name, state_size, action_size, gamma=.99, lr=.0001):
         self.lr = lr
+        self.gamma = gamma
         self.game_name = game_name
         self.state_size = state_size
         self.action_size = action_size
         self.opt = tf.train.AdamOptimizer(self.lr, use_locking=True)
-
         self.model = ActorCriticModel(self.state_size, self.action_size)  # global network
         self.model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
         print("summary")
         self.model.summary()
         plot_model(self.model, to_file='model_tmtc.png')
 
-    def train(self, max_episodes):
+        # temp
+        self.scores, self.episodes, self.average = [], [], []
+
+    def train(self, max_episodes, plotname="A3C_Discrete"):
         res_queue = Queue()
 
         workers = [Worker(self.state_size,
                           self.action_size,
                           self.model,
                           self.opt, res_queue,
-                          i, game_name=self.game_name,
+                          i,
+                          game_name=self.game_name,
+                          gamma=self.gamma,
                           max_episodes=max_episodes) for i in range(multiprocessing.cpu_count())]
-        # i, game_name = self.game_name) for i in range(1)]
+                          #max_episodes = max_episodes) for i in range(1)]
+
 
         for i, worker in enumerate(workers):
             print("Starting worker {}".format(i))
@@ -82,6 +90,7 @@ class MasterAgent(Agent):
             reward = res_queue.get()
             if reward is not None:
                 moving_average_rewards.append(reward)
+                self.plotModel(score=reward, episode=Worker.global_episode, name=plotname)
             else:
                 break
         [w.join() for w in workers]
@@ -94,10 +103,13 @@ class MasterAgent(Agent):
         plt.show()
 
     def act(self, state, epsilon=0):
-        logits, _ = self.model(
+        logits, v = self.model(
             tf.convert_to_tensor(state[None, :],
                                  dtype=tf.float32))
         probs = tf.nn.softmax(logits)
+        #print("max_prob")
+        #print(v)
+        #print(max(probs.numpy()[0]))
         action = np.random.choice(self.action_size, p=probs.numpy()[0])
         return action
 
@@ -120,7 +132,6 @@ class Memory:
 
 
 class Worker(threading.Thread, Agent):
-    # Temp
     # Set up global variables across different threads
     global_episode = 0
     # Moving average reward
@@ -128,7 +139,7 @@ class Worker(threading.Thread, Agent):
     best_score = 0
     save_lock = threading.Lock()
 
-    def __init__(self, state_size, action_size, model, opt, result_queue, idx, game_name,
+    def __init__(self, state_size, action_size, model, opt, result_queue, idx, game_name, gamma,
                  save_dir='/tmp', max_episodes=2000):
         super(Worker, self).__init__()
         self.state_size = state_size
@@ -143,12 +154,9 @@ class Worker(threading.Thread, Agent):
         self.save_dir = save_dir
         self.ep_loss = 0.0
         self.max_episodes = max_episodes
-        self.gamma = 0.99
+        self.gamma = gamma
 
-        # temp
-        self.scores, self.episodes, self.average = [], [], []
-
-    def run(self, update_freq=20):
+    def run(self, update_freq=1):
         total_step = 1
         mem = Memory()
         while Worker.global_episode < self.max_episodes:
@@ -161,6 +169,7 @@ class Worker(threading.Thread, Agent):
             time_count = 0
             done = False
             count = 0
+
             while not done and count < 500:
                 count += 1
                 logits, _ = self.local_model(
@@ -170,8 +179,10 @@ class Worker(threading.Thread, Agent):
 
                 action = np.random.choice(self.action_size, p=probs.numpy()[0])
                 new_state, reward, done, _ = self.env.step(action)
-                if done:
-                    reward = -1
+                #if done:
+                #    print("coucou")
+                #    print(reward)
+                #    reward = -1
                 ep_reward += reward
                 mem.store(current_state, action, reward)
 
@@ -196,7 +207,7 @@ class Worker(threading.Thread, Agent):
                     time_count = 0
 
                     if done:  # done and print information
-                        self.plotModel(score=ep_reward, episode=Worker.global_episode, name="actor_3_critic")
+
 
                         Worker.global_moving_average_reward = \
                             record(Worker.global_episode, ep_reward, self.worker_idx,
@@ -244,6 +255,11 @@ class Worker(threading.Thread, Agent):
                                  dtype=tf.float32))
         r = tf.reshape(tf.convert_to_tensor(np.array(discounted_rewards)[:, None], dtype=tf.float32), values.shape)
         advantage = r - values
+        #print("reward")
+        #print(discounted_rewards)
+        #print("advantage")
+        #print(advantage)
+        #print(values)
 
         # Value loss
         value_loss = advantage ** 2

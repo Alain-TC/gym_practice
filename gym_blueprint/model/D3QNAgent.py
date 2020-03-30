@@ -1,14 +1,16 @@
 import random
+
 import numpy as np
-from .replay_memory.memory import PERMemory
+
 from .basic_agent import Agent
 from .basic_model import SmallModel
+from .replay_memory.memory import PERMemory
 
 
 class D3QNAgent(Agent):
-    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
-                 batch_size=32, dueling=True, ddqn=True, USE_PER=True, plotname="D3QNAgent"):
-        super().__init__(env, state_size, action_size, epsilon_decay, memory_size, gamma, batch_size, plotname)
+    def __init__(self, game_name, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
+                 tau=.001, batch_size=32, dueling=True, ddqn=True, USE_PER=True):
+        super().__init__(game_name, state_size, action_size, epsilon_decay, memory_size, gamma, batch_size)
 
         self.USE_PER = USE_PER
         self.dueling = dueling

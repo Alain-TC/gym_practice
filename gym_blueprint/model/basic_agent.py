@@ -14,7 +14,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 class Agent:
     def __init__(self, game_name, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
-                 batch_size=32, plotname="default_agent_name"):
+                 batch_size=32):
         self.game_name = game_name
         self.env = gym.make(self.game_name)
         self.state_size = state_size
@@ -29,7 +29,6 @@ class Agent:
         self.learning_rate = 0.001
         self.model = None
         self.scores, self.episodes, self.average = [], [], []
-        self.plotname = plotname
 
     def _init_models(self, state_size, action_size, learning_rate, dueling):
         self.model = None
@@ -47,7 +46,7 @@ class Agent:
             return self.env.action_space.sample()
         return np.argmax(self.model.predict(state))
 
-    def run(self, trials):
+    def run(self, trials, plotname="default_agent_name"):
         for episode in range(trials):
             list_reward = []
             state = self.env.reset()
@@ -61,7 +60,7 @@ class Agent:
                     total_reward = np.sum(list_reward)
                     print("episode: {}/{}, e: {:.2}, total reward: {}"
                           .format(episode, trials, self.epsilon, total_reward))
-                    self.plotModel(total_reward, episode, self.plotname)
+                    self.plotModel(total_reward, episode, plotname)
                     break
                 self.replay(self.batch_size)
             self.update_epsilon()
@@ -88,8 +87,6 @@ class Agent:
                     self.env.render()
                 ep_reward += reward
                 mem.store(current_state, action, reward)
-                if render:
-                    self.env.render()
                 if done:  # done and print information
                     self.plotModel(score=ep_reward, episode=global_episode, name=name)
                     global_episode += 1

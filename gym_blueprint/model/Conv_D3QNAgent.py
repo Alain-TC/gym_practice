@@ -1,14 +1,17 @@
-import random
 import os
-import numpy as np
+import random
+import gym
 import cv2
+import numpy as np
+
 from .D3QNAgent import D3QNAgent
 from .basic_model import CNNModel
+from .replay_memory.memory import Memory
 
 
 class Conv_D3QNAgent(D3QNAgent):
-    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99, tau=.001,
-                 dueling=True, ddqn=True, USE_PER=True):
+    def __init__(self, game_name, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
+                 tau=.001, batch_size=32, dueling=True, ddqn=True, USE_PER=True):
 
         self.ROWS = 160
         self.COLS = 240
@@ -21,8 +24,9 @@ class Conv_D3QNAgent(D3QNAgent):
             os.makedirs(self.Save_Path)
         self.scores, self.episodes, self.average = [], [], []
 
-        super().__init__(env, self.state_size, action_size, epsilon_decay, memory_size, gamma, tau,
-                         dueling, ddqn, USE_PER)
+        super().__init__(game_name=game_name, state_size=self.state_size, action_size=action_size,
+                         epsilon_decay=epsilon_decay, memory_size=memory_size, gamma=gamma, tau=tau,
+                         batch_size=batch_size, dueling=dueling, ddqn=ddqn, USE_PER=USE_PER)
 
         # after some time interval update the target model to be same with model
 
@@ -60,14 +64,19 @@ class Conv_D3QNAgent(D3QNAgent):
         next_state = self.GetImage(self.env.render(mode='rgb_array'))
         return next_state, reward, done, info
 
-    def run(self, trials, name="default"):
+    def act(self, state, epsilon):
+        if np.random.random() <= epsilon:
+            return self.env.action_space.sample()
+        return np.argmax(self.model.predict(state))
+
+    def run(self, trials, plotname="CNN_D3QNAgent"):
         for episode in range(trials):
             list_reward = []
             self.env.reset()
             img = self.env.render(mode='rgb_array')
             state = self.reset_env(img)
             while True:
-                action = self.act(state)
+                action = self.act(state, self.epsilon)
                 next_state, reward, done, _ = self.step(action)
                 list_reward.append(reward)
                 self.memorize(state, action, reward, next_state, done)
@@ -76,7 +85,7 @@ class Conv_D3QNAgent(D3QNAgent):
                     total_reward = np.sum(list_reward)
                     print("episode: {}/{}, e: {:.2}, total reward: {}"
                           .format(episode, trials, self.epsilon, total_reward))
-                    self.plotModel(total_reward, episode, name)
+                    self.plotModel(total_reward, episode, plotname)
                     break
                 self.replay(self.batch_size)
             self.update_epsilon()
@@ -146,18 +155,27 @@ class Conv_D3QNAgent(D3QNAgent):
         self.model.fit(state, target, batch_size=self.batch_size, verbose=0)
         self.update_target_model(self.tau)
 
-    def test(self, env):
-        EPISODES = 100
-        for e in range(EPISODES):
-            env.reset()
-            img = env.render(mode='rgb_array')
-            state = self.reset_env(img)
+    def test(self, total_episode, render="True", name="test_plot"):
+        self.scores, self.episodes, self.average = [], [], []
+        self.epsilon = 0
+        self.env = gym.make(self.game_name)
+        mem = Memory()
+        for episode in range(total_episode):
+            self.env.reset()
+            mem.clear()
+            ep_reward = 0.
+
             done = False
-            i = 0
-            while not done:
-                action = np.argmax(self.model.predict(state))
-                next_state, reward, done, _ = env.step(action)
-                i += 1
-                if done:
-                    print("episode: {}/{}, score: {}".format(e, EPISODES, i))
+            while not done:  # and ep_steps<500:
+                img = self.env.render(mode='rgb_array')
+                current_state = self.reset_env(img)
+                action = self.act(current_state, 0)
+                new_state, reward, done, _ = self.env.step(action)
+
+                if render:
+                    self.env.render()
+                ep_reward += reward
+                mem.store(current_state, action, reward)
+                if done:  # done and print information
+                    self.plotModel(score=ep_reward, episode=episode, name=name)
                     break
