@@ -7,7 +7,6 @@ import gym
 import multiprocessing
 import numpy as np
 from queue import Queue
-import argparse
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
@@ -29,18 +28,20 @@ class ActorCriticModel(keras.Model):
         super(ActorCriticModel, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
-        self.dense1 = layers.Dense(128, activation='relu')
-        self.dense3 = layers.Dense(128, activation='relu')
+        self.dense1 = layers.Dense(100, activation='relu')
+        self.dense3 = layers.Dense(100, activation='relu')
+        self.dense5 = layers.Dense(100, activation='relu')
         self.policy_logits = layers.Dense(action_size)
-        self.dense2 = layers.Dense(128, activation='relu')
-        self.dense4 = layers.Dense(128, activation='relu')
+        self.dense2 = layers.Dense(200, activation='relu')
+        self.dense4 = layers.Dense(200, activation='relu')
         self.values = layers.Dense(1)
 
     def call(self, inputs):
         # Forward pass
         x = self.dense1(inputs)
         x3 = self.dense3(x)
-        logits = self.policy_logits(x3)
+        x5 = self.dense5(x3)
+        logits = self.policy_logits(x5)
         v1 = self.dense2(inputs)
         v4 = self.dense4(v1)
         values = self.values(v4)
@@ -48,27 +49,28 @@ class ActorCriticModel(keras.Model):
 
 
 class MasterAgent(Agent):
-    def __init__(self, game_name, state_size, action_size, lr=.001):
+    def __init__(self, game_name, state_size, action_size, lr=.0001):
         self.lr = lr
         self.game_name = game_name
         self.state_size = state_size
         self.action_size = action_size
         self.opt = tf.train.AdamOptimizer(self.lr, use_locking=True)
 
-        self.global_model = ActorCriticModel(self.state_size, self.action_size)  # global network
-        self.global_model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
+        self.model = ActorCriticModel(self.state_size, self.action_size)  # global network
+        self.model(tf.convert_to_tensor(np.random.random((1, self.state_size)), dtype=tf.float32))
         print("summary")
-        self.global_model.summary()
-        plot_model(self.global_model, to_file='model_tmtc.png')
+        self.model.summary()
+        plot_model(self.model, to_file='model_tmtc.png')
 
-    def train(self):
+    def train(self, max_episodes):
         res_queue = Queue()
 
         workers = [Worker(self.state_size,
                           self.action_size,
-                          self.global_model,
+                          self.model,
                           self.opt, res_queue,
-                          i, game_name=self.game_name) for i in range(multiprocessing.cpu_count())]
+                          i, game_name=self.game_name,
+                          max_episodes=max_episodes) for i in range(multiprocessing.cpu_count())]
         # i, game_name = self.game_name) for i in range(1)]
 
         for i, worker in enumerate(workers):
@@ -91,41 +93,13 @@ class MasterAgent(Agent):
         #                         '{} Moving Average.png'.format(self.game_name)))
         plt.show()
 
-    def test(self, total_episode, render="True", name="A3C_test"):
-        self.scores, self.episodes, self.average = [], [], []
-        self.env = gym.make(self.game_name)
-        mem = Memory()
-        global_episode = 0
-        while global_episode < total_episode:
-            current_state = self.env.reset()
-            mem.clear()
-            ep_reward = 0.
-            ep_steps = 0
-            self.ep_loss = 0
-
-            done = False
-            while not done:  # and ep_steps<500:
-                logits, _ = self.global_model(
-                    tf.convert_to_tensor(current_state[None, :],
-                                         dtype=tf.float32))
-                probs = tf.nn.softmax(logits)
-
-                action = np.random.choice(self.action_size, p=probs.numpy()[0])
-                new_state, reward, done, _ = self.env.step(action)
-                if render:
-                    self.env.render()
-                if done:
-                    reward = -1
-                ep_reward += reward
-                mem.store(current_state, action, reward)
-
-                if done:  # done and print information
-                    self.plotModel(score=ep_reward, episode=global_episode, name=name)
-                    global_episode += 1
-                    print(ep_steps)
-
-                ep_steps += 1
-                current_state = new_state
+    def act(self, state, epsilon=0):
+        logits, _ = self.model(
+            tf.convert_to_tensor(state[None, :],
+                                 dtype=tf.float32))
+        probs = tf.nn.softmax(logits)
+        action = np.random.choice(self.action_size, p=probs.numpy()[0])
+        return action
 
 
 class Memory:
@@ -154,13 +128,13 @@ class Worker(threading.Thread, Agent):
     best_score = 0
     save_lock = threading.Lock()
 
-    def __init__(self, state_size, action_size, global_model, opt, result_queue, idx, game_name,
-                 save_dir='/tmp', max_episodes=500):
+    def __init__(self, state_size, action_size, model, opt, result_queue, idx, game_name,
+                 save_dir='/tmp', max_episodes=2000):
         super(Worker, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
         self.result_queue = result_queue
-        self.global_model = global_model
+        self.model = model
         self.opt = opt
         self.local_model = ActorCriticModel(self.state_size, self.action_size)
         self.worker_idx = idx
@@ -187,7 +161,7 @@ class Worker(threading.Thread, Agent):
             time_count = 0
             done = False
             count = 0
-            while not done and count<500:
+            while not done and count < 500:
                 count += 1
                 logits, _ = self.local_model(
                     tf.convert_to_tensor(current_state[None, :],
@@ -214,9 +188,9 @@ class Worker(threading.Thread, Agent):
                     grads = tape.gradient(total_loss, self.local_model.trainable_weights)
                     # Push local gradients to global model
                     self.opt.apply_gradients(zip(grads,
-                                                 self.global_model.trainable_weights))
+                                                 self.model.trainable_weights))
                     # Update local model with new weights
-                    self.local_model.set_weights(self.global_model.get_weights())
+                    self.local_model.set_weights(self.model.get_weights())
 
                     mem.clear()
                     time_count = 0
@@ -233,7 +207,7 @@ class Worker(threading.Thread, Agent):
                             with Worker.save_lock:
                                 print("Saving best model to {}, "
                                       "episode score: {}".format(self.save_dir, ep_reward))
-                                self.global_model.save_weights(
+                                self.model.save_weights(
                                     os.path.join(self.save_dir,
                                                  'model_{}.h5'.format(self.game_name))
                                 )

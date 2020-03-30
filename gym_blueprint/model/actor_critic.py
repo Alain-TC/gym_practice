@@ -1,10 +1,12 @@
 from collections import deque
+
+import numpy as np
 import tensorflow as tf
-from .basic_agent import Agent
-from .replay_memory.memory import Memory
 from tensorflow.python import keras
 from tensorflow.python.keras import layers
-import numpy as np
+
+from .basic_agent import Agent
+from .replay_memory.memory import Memory
 
 tf.enable_eager_execution()
 

@@ -41,9 +41,9 @@ def SmallModel(input_shape, output_shape, learning_rate, dueling=False):
     input_shape = (input_shape,)
     X_input = Input(input_shape)
     X = X_input
-    X = Dense(64, input_shape=input_shape, activation="relu")(X)
+    X = Dense(128, input_shape=input_shape, activation="relu")(X)
     X = Dense(128, activation="relu")(X)
-    X = Dense(64, activation="relu")(X)
+    X = Dense(128, activation="relu")(X)
 
     if dueling:
         state_value = Dense(1, kernel_initializer='he_uniform')(X)

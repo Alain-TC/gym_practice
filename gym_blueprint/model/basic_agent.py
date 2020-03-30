@@ -1,17 +1,22 @@
+import os
 import random
 from collections import deque
-import os
-import pylab
+
+import gym
 import numpy as np
+import pylab
 from keras.models import model_from_json
+
+from .replay_memory.memory import Memory
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
 class Agent:
-    def __init__(self, env, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
+    def __init__(self, game_name, state_size, action_size, epsilon_decay=0.99, memory_size=1000000, gamma=0.99,
                  batch_size=32, plotname="default_agent_name"):
-        self.env = env
+        self.game_name = game_name
+        self.env = gym.make(self.game_name)
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=memory_size)
@@ -36,8 +41,9 @@ class Agent:
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
-        if np.random.random() <= self.epsilon:
+    def act(self, state, epsilon):
+        state = np.reshape(state, [1, self.state_size])
+        if np.random.random() <= epsilon:
             return self.env.action_space.sample()
         return np.argmax(self.model.predict(state))
 
@@ -45,12 +51,10 @@ class Agent:
         for episode in range(trials):
             list_reward = []
             state = self.env.reset()
-            state = np.reshape(state, [1, self.state_size])
             while True:
-                action = self.act(state)
+                action = self.act(state, self.epsilon)
                 next_state, reward, done, _ = self.env.step(action)
                 list_reward.append(reward)
-                next_state = np.reshape(next_state, [1, self.state_size])
                 self.memorize(state, action, reward, next_state, done)
                 state = next_state
                 if done:
@@ -61,6 +65,38 @@ class Agent:
                     break
                 self.replay(self.batch_size)
             self.update_epsilon()
+
+    def test(self, total_episode, render="True", name="test_plot"):
+        self.scores, self.episodes, self.average = [], [], []
+        self.epsilon = 0
+        self.env = gym.make(self.game_name)
+        mem = Memory()
+        global_episode = 0
+        while global_episode < total_episode:
+            current_state = self.env.reset()
+
+            mem.clear()
+            ep_reward = 0.
+            ep_steps = 0
+
+            done = False
+            while not done:  # and ep_steps<500:
+                action = self.act(current_state, 0)
+                new_state, reward, done, _ = self.env.step(action)
+
+                if render:
+                    self.env.render()
+                ep_reward += reward
+                mem.store(current_state, action, reward)
+                if render:
+                    self.env.render()
+                if done:  # done and print information
+                    self.plotModel(score=ep_reward, episode=global_episode, name=name)
+                    global_episode += 1
+                    break
+
+                ep_steps += 1
+                current_state = new_state
 
     def replay(self, batch_size):
         self.batch_size = batch_size
